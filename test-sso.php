@@ -18,14 +18,17 @@ class KeycloakSSOIntegration {
   private $client_id;
   private $client_secret;
   private $keycloak_url;
+  private $login_path;
+  private $login_redirect_path;
 
   public function __construct() {
     $this->realm = get_option('keycloak_realm', 'wordpress');
     $this->client_id = get_option('keycloak_client_id', 'demo-client');
     $this->client_secret = get_option('keycloak_client_secret', 'PNFIKU0jUX4DCC27TsZgVS8E8r8dIk53');
     $this->keycloak_url = get_option('keycloak_url', 'http://host.docker.internal:8888');
+    $this->login_path = get_option('keycloak_login_path', '/login');
+    $this->login_redirect_path = get_option('keycloak_login_redirect_path', '/');
 
-    // Initialize the OpenID Connect client
     $this->oidc = new OpenIDConnectClient(
       "{$this->keycloak_url}/realms/{$this->realm}",
       $this->client_id,
@@ -60,7 +63,15 @@ class KeycloakSSOIntegration {
     if (is_admin() || wp_doing_ajax()) {
       return;
     }
-    $page_login = get_page_by_path( 'login' );
+
+
+    $page_login = get_page_by_path( $this->login_path );
+
+    if (!$page_login) {
+      error_log('Login page not found.');
+      return;
+    }
+
     $login_page_id = $page_login->ID;
 
     error_log('Isset cookie: ' . isset($_COOKIE[$this->cookie_name]));
@@ -74,7 +85,7 @@ class KeycloakSSOIntegration {
 
         if (is_page($login_page_id)) {
           error_log('Redirecting from login page to homepage');
-          wp_redirect(home_url());
+          wp_redirect(home_url($this->login_redirect_path));
           exit;
         }
       } else {
@@ -266,7 +277,7 @@ class KeycloakSSOIntegration {
       if ($token) {
         $this->set_auth_cookie($token);
         $this->set_wordpress_user($token);
-        wp_send_json_success(['redirect_url' => home_url()]);
+        wp_send_json_success(['redirect_url' => home_url($this->login_redirect_path)]);
       } else {
         throw new Exception('Authentication failed');
       }
@@ -342,7 +353,10 @@ class KeycloakSSOIntegration {
     register_setting('keycloak_sso_settings_group', 'keycloak_client_secret');
     register_setting('keycloak_sso_settings_group', 'keycloak_url');
     register_setting('keycloak_sso_settings_group', 'keycloak_realm');
+    register_setting('keycloak_sso_settings_group', 'keycloak_login_page_path');
+    register_setting('keycloak_sso_settings_group', 'keycloak_login_redirect_path');
   }
+
 
   public function settings_page() {
     ?>
@@ -370,14 +384,30 @@ class KeycloakSSOIntegration {
             <th scope="row">Realm</th>
             <td><input type="text" name="keycloak_realm" value="<?php echo esc_attr(get_option('keycloak_realm')); ?>" /></td>
           </tr>
+          <tr valign="top">
+            <th scope="row">Login Page Path</th>
+            <td><input type="text" name="keycloak_login_page_path" value="<?php echo esc_attr(get_option('keycloak_login_page_path')); ?>" placeholder="/login" /></td>
+          </tr>
+          <tr valign="top">
+            <th scope="row">Login Redirect Path</th>
+            <td><input type="text" name="keycloak_login_redirect_path" value="<?php echo esc_attr(get_option('keycloak_login_redirect_path')); ?>" placeholder="/" /></td>
+          </tr>
         </table>
         <?php submit_button(); ?>
       </form>
     </div>
     <?php
   }
+}
+register_uninstall_hook(__FILE__, 'keycloak_sso_uninstall');
 
-
+function keycloak_sso_uninstall() {
+  delete_option('keycloak_client_id');
+  delete_option('keycloak_client_secret');
+  delete_option('keycloak_url');
+  delete_option('keycloak_realm');
+  delete_option('keycloak_login_page_path');
+  delete_option('keycloak_login_redirect_path');
 }
 
 $keycloak_sso = new KeycloakSSOIntegration();
