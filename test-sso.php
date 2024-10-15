@@ -13,7 +13,7 @@ use Jumbojett\OpenIDConnectClient;
 class KeycloakSSOIntegration {
   private $oidc;
   private $cookie_name = 'keycloak_sso_token';
-  private $cookie_domain = 'localhost:83';
+  private $cookie_domain;
   private $realm;
   private $client_id;
   private $client_secret;
@@ -22,6 +22,7 @@ class KeycloakSSOIntegration {
   private $login_redirect_path;
 
   public function __construct() {
+    $this->cookie_domain = parse_url($_SERVER['HTTP_HOST'], PHP_URL_HOST) ?: $_SERVER['HTTP_HOST'];
     $this->realm = get_option('keycloak_realm', 'wordpress');
     $this->client_id = get_option('keycloak_client_id', 'demo-client');
     $this->client_secret = get_option('keycloak_client_secret', 'PNFIKU0jUX4DCC27TsZgVS8E8r8dIk53');
@@ -86,7 +87,7 @@ class KeycloakSSOIntegration {
 
         if (is_page($login_page_id)) {
           error_log('Redirecting from login page to homepage');
-          wp_redirect(home_url($this->login_redirect_path));
+          wp_redirect(site_url($this->login_redirect_path));
           exit;
         }
       } else {
@@ -278,7 +279,7 @@ class KeycloakSSOIntegration {
       if ($token) {
         $this->set_auth_cookie($token);
         $this->set_wordpress_user($token);
-        wp_send_json_success(['redirect_url' => home_url($this->login_redirect_path)]);
+        wp_send_json_success(['redirect_url' => site_url($this->login_redirect_path)]);
       } else {
         throw new Exception('Authentication failed');
       }
@@ -292,8 +293,8 @@ class KeycloakSSOIntegration {
     setcookie($this->cookie_name, $token, [
       'expires' => time() + 3600,
       'path' => '/',
-      'domain' => 'localhost',
-      'secure' => true,
+      'domain' => $this->cookie_domain,
+      'secure' => false,
       'httponly' => true,
       'samesite' => 'Lax'
     ]);
@@ -321,7 +322,7 @@ class KeycloakSSOIntegration {
 
 
   public function logout() {
-    $this->oidc->signOut(NULL, home_url());
+    $this->oidc->signOut(NULL, site_url());
     setcookie($this->cookie_name, '', time() - 3600, '/', $this->cookie_domain, true, true);
   }
 
@@ -340,11 +341,11 @@ class KeycloakSSOIntegration {
 
   public function add_admin_menu() {
     add_options_page(
-      'Keycloak SSO Settings', // Page title
-      'Keycloak SSO',          // Menu title
-      'manage_options',        // Capability
-      'keycloak-sso-settings', // Menu slug
-      array($this, 'settings_page') // Callback function
+      'Keycloak SSO Settings',
+      'Keycloak SSO',
+      'manage_options',
+      'keycloak-sso-settings',
+      array($this, 'settings_page')
     );
   }
 
