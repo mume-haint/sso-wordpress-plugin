@@ -21,6 +21,24 @@ class KeycloakSSOIntegration {
   private $login_path;
   private $login_redirect_path;
 
+  private $authorization_code;
+
+  public function enqueue_scripts() {
+    wp_enqueue_script('jquery');
+
+    // Get the current path without query parameters
+    $current_path = parse_url(home_url($_SERVER['REQUEST_URI']), PHP_URL_PATH);
+    // Get the login redirect path
+    $login_redirect_path = untrailingslashit($this->login_redirect_path);
+
+    // Compare only the path
+    if (untrailingslashit($current_path) === $login_redirect_path) {
+      wp_enqueue_script('keycloak-popup-handler', plugin_dir_url(__FILE__) . 'js/popup-handler.js', array('jquery'), '1.0', true);
+    }
+  }
+
+
+
   public function __construct() {
     $this->cookie_domain = parse_url($_SERVER['HTTP_HOST'], PHP_URL_HOST) ?: $_SERVER['HTTP_HOST'];
     $this->realm = get_option('keycloak_realm', 'wordpress');
@@ -56,14 +74,11 @@ class KeycloakSSOIntegration {
     add_action('admin_init', array($this, 'register_settings'));
   }
 
-  public function enqueue_scripts() {
-    wp_enqueue_script('jquery');
-  }
-
   public function init_auth() {
     if (is_admin() || wp_doing_ajax()) {
       return;
     }
+    error_log('Is main page ' . is_page() && site_url($this->login_redirect_path) === home_url(add_query_arg(null, null)));
 
     error_log('Login path '. $this->login_path);
 
@@ -79,71 +94,89 @@ class KeycloakSSOIntegration {
     error_log('Isset cookie: ' . isset($_COOKIE[$this->cookie_name]));
     error_log('Is login page: ' . is_page($login_page_id));
 
-    if (isset($_COOKIE[$this->cookie_name])) {
-      $token = $_COOKIE[$this->cookie_name];
-
-      if ($this->is_token_valid($token)) {
-        $this->set_wordpress_user($token);
-
-        if (is_page($login_page_id)) {
-          error_log('Redirecting from login page to homepage');
-          wp_redirect(site_url($this->login_redirect_path));
-          exit;
-        }
-      } else {
-        error_log('Invalid token. Clearing cookie and redirecting to login page');
-        setcookie($this->cookie_name, '', time() - 3600, '/', $this->cookie_domain, true, true);
-        if (!is_page($login_page_id)) {
-          wp_redirect(get_page_link($login_page_id));
-          exit;
-        }
-      }
-    } else {
-      if (!is_page($login_page_id)) {
-        wp_redirect(get_page_link($login_page_id));
-      }
-    }
+//    if (isset($_COOKIE[$this->cookie_name])) {
+//      $token = $_COOKIE[$this->cookie_name];
+//
+//      if ($this->is_token_valid($token)) {
+//        $this->set_wordpress_user($token);
+//
+//        if (is_page($login_page_id)) {
+//          error_log('Redirecting from login page to homepage');
+//          wp_redirect(site_url($this->login_redirect_path));
+//          exit;
+//        }
+//      } else {
+//        error_log('Invalid token. Clearing cookie and redirecting to login page');
+//        setcookie($this->cookie_name, '', time() - 3600, '/', $this->cookie_domain, true, true);
+//        if (!is_page($login_page_id)) {
+//          wp_redirect(get_page_link($login_page_id));
+//          exit;
+//        }
+//      }
+//    } else {
+//      if (!is_page($login_page_id)) {
+//        wp_redirect(get_page_link($login_page_id));
+//      }
+//    }
   }
 
 
-
-  public function login_form_shortcode() {
+  public function login_form_shortcode()
+  {
     ob_start();
     ?>
-    <form id="keycloak-login-form">
-      <input type="text" name="username" placeholder="Username" required>
-      <input type="password" name="password" placeholder="Password" required>
-      <button type="submit">Login</button>
-    </form>
-    <script>
-        jQuery(document).ready(function($) {
-            $('#keycloak-login-form').on('submit', function(e) {
-                e.preventDefault();
-                var username = $('input[name="username"]').val();
-                var password = $('input[name="password"]').val();
+    <button id="keycloak-login-btn">Login with Keycloak</button>
 
-                $.ajax({
-                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                    type: 'POST',
-                    data: {
-                        action: 'keycloak_login',
-                        username: username,
-                        password: password
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            window.location.href = response.data?.redirect_url;
-                        } else {
-                            alert('Login failed. Please try again.');
-                        }
+    <script>
+        jQuery(document).ready(function ($) {
+            $('#keycloak-login-btn').on('click', function (e) {
+                e.preventDefault();
+
+                var keycloakAuthUrl = '<?php echo $this->get_keycloak_auth_url(); ?>';
+                var popup = window.open(keycloakAuthUrl, 'keycloakLogin', 'width=600,height=700');
+
+                if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+                    alert('Popup blocked! Please allow popups for this website.');
+                    return;
+                }
+                window.addEventListener('message', function (event) {
+                    if (event.origin !== window.location.origin) {
+                        return;
                     }
-                });
+
+                    if (event.data.status === 'logged_in') {
+                        console.log(event.data.code)
+                        $.ajax({
+                            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                            type: 'POST',
+                            data: {
+                                action: 'keycloak_handle_auth_code',
+                                code: event.data.code
+                            },
+                            success: function (response) {
+                                if (response.success) {
+                                    console.log('Authorization code processed successfully.');
+                                    window.location.href = response.redirect_url;
+                                } else {
+                                    console.error('Failed to process authorization code: ', response);
+                                }
+                            },
+                            error: function (jqXHR, textStatus, errorThrown) {
+                                console.error('Error processing authorization code: ', textStatus, errorThrown);
+                            }
+                        });
+                    }
+                }, false);
             });
         });
     </script>
     <?php
     return ob_get_clean();
   }
+
+
+
+
 
   public function signup_form_shortcode() {
     ob_start();
@@ -298,6 +331,7 @@ class KeycloakSSOIntegration {
       'httponly' => true,
       'samesite' => 'Lax'
     ]);
+
   }
 
   private function set_wordpress_user($token) {
@@ -337,6 +371,22 @@ class KeycloakSSOIntegration {
       return false;
     }
   }
+
+  private function get_keycloak_auth_url() {
+    $redirect_uri = site_url($this->login_redirect_path); // The URL Keycloak should redirect to after successful login
+    $state = bin2hex(random_bytes(16)); // Optional, to maintain state between requests
+
+    // Construct the authorization URL
+    $auth_url = "http://localhost:8888/realms/{$this->realm}/protocol/openid-connect/auth";
+    $auth_url .= '?response_type=code';
+    $auth_url .= '&client_id=' . urlencode($this->client_id);
+    $auth_url .= '&redirect_uri=' . urlencode($redirect_uri);
+    $auth_url .= '&scope=' . urlencode('openid profile email');
+    $auth_url .= '&state=' . urlencode($state);
+
+    return $auth_url;
+  }
+
 
 
   public function add_admin_menu() {
@@ -400,6 +450,59 @@ class KeycloakSSOIntegration {
     </div>
     <?php
   }
+
+  public function handle_auth_code() {
+    if (!isset($_POST['code'])) {
+      wp_send_json_error('Authorization code not provided');
+      return;
+    }
+
+    $authorization_code = sanitize_text_field($_POST['code']);
+    $this->authorization_code = $authorization_code;
+    error_log($this->authorization_code);
+    try {
+      $keycloak_token_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/token";
+
+      $data = [
+        'grant_type' => 'authorization_code',
+        'client_id' => $this->client_id,
+        'client_secret' => $this->client_secret,
+        'redirect_uri' => $this->login_redirect_path,
+        'code' => $this->authorization_code,
+      ];
+
+      $options = [
+        'http' => [
+          'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+          'method'  => 'POST',
+          'content' => http_build_query($data),
+        ],
+      ];
+
+      $context  = stream_context_create($options);
+      $response = file_get_contents($keycloak_token_url, false, $context);
+
+      if ($response === FALSE) {
+        $error = error_get_last();
+
+        die('Error occurred during token request: ' .
+          $error['message'] .
+          ' in ' .
+          $error['file'] .
+          ' on line ' .
+          $error['line']);
+      }
+
+      $token = json_decode($response);
+
+      $access_token = $token->access_token;
+      $this->set_wordpress_user($access_token);
+    } catch (Exception $e) {
+      error_log('Error handling auth code: ' . $e->getMessage());
+      wp_send_json_error('Error processing authorization code');
+    }
+  }
+
 }
 register_uninstall_hook(__FILE__, 'keycloak_sso_uninstall');
 
@@ -418,4 +521,6 @@ add_action('wp_ajax_nopriv_keycloak_login', array($keycloak_sso, 'handle_login')
 add_action('wp_ajax_keycloak_login', array($keycloak_sso, 'handle_login'));
 add_action('wp_ajax_nopriv_keycloak_signup', array($keycloak_sso, 'handle_signup'));
 add_action('wp_ajax_keycloak_signup', array($keycloak_sso, 'handle_signup'));
+add_action('wp_ajax_nopriv_keycloak_handle_auth_code', array($keycloak_sso, 'handle_auth_code'));
+add_action('wp_ajax_keycloak_handle_auth_code', array($keycloak_sso, 'handle_auth_code'));
 
