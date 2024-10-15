@@ -26,7 +26,7 @@ class KeycloakSSOIntegration {
     $this->client_id = get_option('keycloak_client_id', 'demo-client');
     $this->client_secret = get_option('keycloak_client_secret', 'PNFIKU0jUX4DCC27TsZgVS8E8r8dIk53');
     $this->keycloak_url = get_option('keycloak_url', 'http://host.docker.internal:8888');
-    $this->login_path = get_option('keycloak_login_path', '/login');
+    $this->login_path = get_option('keycloak_login_page_path', '/login');
     $this->login_redirect_path = get_option('keycloak_login_redirect_path', '/');
 
     $this->oidc = new OpenIDConnectClient(
@@ -64,6 +64,7 @@ class KeycloakSSOIntegration {
       return;
     }
 
+    error_log('Login path '. $this->login_path);
 
     $page_login = get_page_by_path( $this->login_path );
 
