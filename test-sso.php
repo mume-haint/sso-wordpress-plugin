@@ -490,34 +490,57 @@ class KeycloakSSOIntegration {
         <table class="form-table">
           <tr valign="top">
             <th scope="row">Client ID</th>
-            <td><input type="text" name="keycloak_client_id" value="<?php echo esc_attr(get_option('keycloak_client_id')); ?>" /></td>
+            <td><input type="text" name="keycloak_client_id" value="<?php echo esc_attr(get_option('keycloak_client_id')); ?>" style="width: 400px;" /></td>
           </tr>
           <tr valign="top">
             <th scope="row">Client Secret</th>
-            <td><input type="text" name="keycloak_client_secret" value="<?php echo esc_attr(get_option('keycloak_client_secret')); ?>" /></td>
+            <td>
+              <div style="position: relative; width: 400px;">
+                <input type="password" name="keycloak_client_secret" id="keycloak_client_secret" value="<?php echo esc_attr(get_option('keycloak_client_secret')); ?>" style="width: 400px; padding-right: 30px;" />
+                <span id="toggleClientSecret" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;" onclick="toggleClientSecretVisibility()">
+                👁️
+            </span>
+              </div>
+            </td>
           </tr>
           <tr valign="top">
             <th scope="row">Keycloak URL</th>
-            <td><input type="text" name="keycloak_url" value="<?php echo esc_attr(get_option('keycloak_url')); ?>" /></td>
+            <td><input type="text" name="keycloak_url" value="<?php echo esc_attr(get_option('keycloak_url')); ?>" style="width: 400px;" /></td>
           </tr>
           <tr valign="top">
             <th scope="row">Realm</th>
-            <td><input type="text" name="keycloak_realm" value="<?php echo esc_attr(get_option('keycloak_realm')); ?>" /></td>
+            <td><input type="text" name="keycloak_realm" value="<?php echo esc_attr(get_option('keycloak_realm')); ?>" style="width: 400px;" /></td>
           </tr>
           <tr valign="top">
             <th scope="row">Login Page Path</th>
-            <td><input type="text" name="keycloak_login_page_path" value="<?php echo esc_attr(get_option('keycloak_login_page_path')); ?>" placeholder="/login" /></td>
+            <td><input type="text" name="keycloak_login_page_path" value="<?php echo esc_attr(get_option('keycloak_login_page_path')); ?>" style="width: 400px;" placeholder="/login" /></td>
           </tr>
           <tr valign="top">
             <th scope="row">Login Redirect Path</th>
-            <td><input type="text" name="keycloak_login_redirect_path" value="<?php echo esc_attr(get_option('keycloak_login_redirect_path')); ?>" placeholder="/" /></td>
+            <td><input type="text" name="keycloak_login_redirect_path" value="<?php echo esc_attr(get_option('keycloak_login_redirect_path')); ?>" style="width: 400px;" placeholder="/" /></td>
           </tr>
         </table>
         <?php submit_button(); ?>
       </form>
     </div>
+
+    <script type="text/javascript">
+        function toggleClientSecretVisibility() {
+            var input = document.getElementById('keycloak_client_secret');
+            var toggleIcon = document.getElementById('toggleClientSecret');
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggleIcon.innerText = '🙈';
+            } else {
+                input.type = 'password';
+                toggleIcon.innerText = '👁️';
+            }
+        }
+    </script>
     <?php
   }
+
+
 
 }
 register_uninstall_hook(__FILE__, 'keycloak_sso_uninstall');
