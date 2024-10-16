@@ -26,16 +26,6 @@ class KeycloakSSOIntegration {
 
   public function enqueue_scripts() {
     wp_enqueue_script('jquery');
-
-    // Get the current path without query parameters
-    $current_path = parse_url(home_url($_SERVER['REQUEST_URI']), PHP_URL_PATH);
-    // Get the login redirect path
-    $login_redirect_path = untrailingslashit($this->login_redirect_path);
-
-    // Compare only the path
-    if (untrailingslashit($current_path) === $login_redirect_path) {
-      wp_enqueue_script('keycloak-popup-handler', plugin_dir_url(__FILE__) . 'js/popup-handler.js', array('jquery'), '1.0', true);
-    }
   }
 
 
@@ -79,14 +69,18 @@ class KeycloakSSOIntegration {
   }
 
   public function register_handle_auth_code_endpoints() {
-    error_log('register_handle_auth_code_endpoints');
     add_rewrite_rule('^handle-auth-code/?', 'index.php?handle-auth-code=1', 'top');
   }
 
   public function handle_auth_code_requests() {
+    if (get_query_var('handle-auth-code') == 'true') {
+      handle_auth_code_endpoint();
+      exit;
+    }
     error_log('handle_auth_code_requests');
     global $wp_query;
-    if (isset($wp_query->query_vars['handle-auth-code'])) {
+    error_log(json_encode($wp_query->query_vars));
+    if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-auth-code') {
       $this->handle_auth_code_endpoint();
     }
   }
@@ -134,10 +128,30 @@ class KeycloakSSOIntegration {
 
       $token = json_decode($response);
       $access_token = $token->access_token;
+      error_log('Access token: '. $access_token);
+      ?>
+      <script>
+          if (window.opener) {
+              console.log('This page was opened as a popup.');
+              let token = '<?php echo $access_token; ?>'
+              if (token) {
+                  window.opener.postMessage({
+                      status: 'logged_in',
+                      message: 'User successfully logged in!',
+                      token: token
+                  }, window.location.origin);
+              } else {
+                  console.error('No token found in the URL.');
+              }
 
+              window.close();
+          }
+      </script>
+
+      <?php
 //      $this->set_wordpress_user($access_token);
 
-//      wp_redirect(site_url());
+      wp_redirect(site_url());
       exit;
 
     } catch (Exception $e) {
@@ -211,26 +225,8 @@ class KeycloakSSOIntegration {
                     }
 
                     if (event.data.status === 'logged_in') {
-                        console.log(event.data.code)
-                        $.ajax({
-                            url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                            type: 'POST',
-                            data: {
-                                action: 'keycloak_handle_auth_code',
-                                code: event.data.code
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    console.log('Authorization code processed successfully.');
-                                    window.location.href = response.redirect_url;
-                                } else {
-                                    console.error('Failed to process authorization code: ', response);
-                                }
-                            },
-                            error: function (jqXHR, textStatus, errorThrown) {
-                                console.error('Error processing authorization code: ', textStatus, errorThrown);
-                            }
-                        });
+                        console.log(event.data.token)
+                        window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
                     }
                 }, false);
             });
@@ -517,58 +513,6 @@ class KeycloakSSOIntegration {
     <?php
   }
 
-  public function handle_auth_code() {
-    if (!isset($_POST['code'])) {
-      wp_send_json_error('Authorization code not provided');
-      return;
-    }
-
-    $authorization_code = sanitize_text_field($_POST['code']);
-    $this->authorization_code = $authorization_code;
-    error_log($this->authorization_code);
-    try {
-      $keycloak_token_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/token";
-
-      $data = [
-        'grant_type' => 'authorization_code',
-        'client_id' => $this->client_id,
-        'client_secret' => $this->client_secret,
-        'redirect_uri' => $this->login_redirect_path,
-        'code' => $this->authorization_code,
-      ];
-
-      $options = [
-        'http' => [
-          'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-          'method'  => 'POST',
-          'content' => http_build_query($data),
-        ],
-      ];
-
-      $context  = stream_context_create($options);
-      $response = file_get_contents($keycloak_token_url, false, $context);
-
-      if ($response === FALSE) {
-        $error = error_get_last();
-
-        die('Error occurred during token request: ' .
-          $error['message'] .
-          ' in ' .
-          $error['file'] .
-          ' on line ' .
-          $error['line']);
-      }
-
-      $token = json_decode($response);
-
-      $access_token = $token->access_token;
-      $this->set_wordpress_user($access_token);
-    } catch (Exception $e) {
-      error_log('Error handling auth code: ' . $e->getMessage());
-      wp_send_json_error('Error processing authorization code');
-    }
-  }
-
 }
 register_uninstall_hook(__FILE__, 'keycloak_sso_uninstall');
 
@@ -587,6 +531,4 @@ add_action('wp_ajax_nopriv_keycloak_login', array($keycloak_sso, 'handle_login')
 add_action('wp_ajax_keycloak_login', array($keycloak_sso, 'handle_login'));
 add_action('wp_ajax_nopriv_keycloak_signup', array($keycloak_sso, 'handle_signup'));
 add_action('wp_ajax_keycloak_signup', array($keycloak_sso, 'handle_signup'));
-add_action('wp_ajax_nopriv_keycloak_handle_auth_code', array($keycloak_sso, 'handle_auth_code'));
-add_action('wp_ajax_keycloak_handle_auth_code', array($keycloak_sso, 'handle_auth_code'));
 
