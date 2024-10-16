@@ -439,7 +439,7 @@ class KeycloakSSOIntegration {
     $state = bin2hex(random_bytes(16));
 
     // Construct the authorization URL
-    $auth_url = "http://localhost:8888/realms/{$this->realm}/protocol/openid-connect/auth";
+    $auth_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/auth";
     $auth_url .= '?response_type=code';
     $auth_url .= '&client_id=' . urlencode($this->client_id);
     $auth_url .= '&redirect_uri=' . urlencode($redirect_uri);
