@@ -243,38 +243,31 @@ class KeycloakSSOIntegration {
   public function signup_form_shortcode() {
     ob_start();
     ?>
-    <form id="keycloak-signup-form">
-      <input type="text" name="username" placeholder="Username" required>
-      <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Password" required>
-      <button type="submit">Signup</button>
-    </form>
-    <script>
-        jQuery(document).ready(function($) {
-            $('#keycloak-signup-form').on('submit', function(e) {
-                e.preventDefault();
-                var username = $('input[name="username"]').val();
-                var email = $('input[name="email"]').val();
-                var password = $('input[name="password"]').val();
+    <button id="keycloak-signup-btn">Signup with Keycloak</button>
 
-                $.ajax({
-                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                    type: 'POST',
-                    data: {
-                        action: 'keycloak_signup',
-                        username: username,
-                        email: email,
-                        password: password
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            alert('Signup success. You can now login.');
-                        } else {
-                            alert('Signup failed. Please try again.');
-                            console.log(response);
-                        }
+    <script>
+        jQuery(document).ready(function ($) {
+            $('#keycloak-signup-btn').on('click', function (e) {
+                e.preventDefault();
+
+                var keycloakAuthUrl = '<?php echo $this->get_keycloak_signup_url(); ?>';
+                console.log(keycloakAuthUrl)
+                var popup = window.open(keycloakAuthUrl, 'keycloakSignup', 'width=600,height=700');
+
+                if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+                    alert('Popup blocked! Please allow popups for this website.');
+                    return;
+                }
+                window.addEventListener('message', function (event) {
+                    if (event.origin !== window.location.origin) {
+                        return;
                     }
-                });
+
+                    if (event.data.status === 'logged_in') {
+                        console.log(event.data.token)
+                        window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
+                    }
+                }, false);
             });
         });
     </script>
@@ -445,6 +438,19 @@ class KeycloakSSOIntegration {
     $auth_url .= '&redirect_uri=' . urlencode($redirect_uri);
     $auth_url .= '&scope=' . urlencode('openid profile email');
     $auth_url .= '&state=' . urlencode($state);
+
+    return $auth_url;
+  }
+
+  private function get_keycloak_signup_url() {
+    $redirect_uri = site_url($this->handle_auth_code_path);
+
+    // Construct the authorization URL
+    $auth_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/registrations";
+    $auth_url .= '?response_type=code';
+    $auth_url .= '&client_id=' . urlencode($this->client_id);
+    $auth_url .= '&redirect_uri=' . urlencode($redirect_uri);
+    $auth_url .= '&scope=' . urlencode('openid profile');
 
     return $auth_url;
   }
