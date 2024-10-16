@@ -19,6 +19,7 @@ class KeycloakSSOIntegration {
   private $client_secret;
   private $keycloak_url;
   private $login_path;
+  private $handle_auth_code_path = 'handle-auth-code';
   private $login_redirect_path;
 
   private $authorization_code;
@@ -46,7 +47,7 @@ class KeycloakSSOIntegration {
     $this->client_secret = get_option('keycloak_client_secret', 'PNFIKU0jUX4DCC27TsZgVS8E8r8dIk53');
     $this->keycloak_url = get_option('keycloak_url', 'http://host.docker.internal:8888');
     $this->login_path = get_option('keycloak_login_page_path', '/login');
-    $this->login_redirect_path = get_option('keycloak_login_redirect_path', '/');
+    $this->login_redirect_path = get_option('keycloak_login_redirect_path', '');
 
     $this->oidc = new OpenIDConnectClient(
       "{$this->keycloak_url}/realms/{$this->realm}",
@@ -72,15 +73,83 @@ class KeycloakSSOIntegration {
 
     add_action('admin_menu', array($this, 'add_admin_menu'));
     add_action('admin_init', array($this, 'register_settings'));
+    add_action('init', array($this, 'register_handle_auth_code_endpoints'));
+    add_filter('query_vars', array($this, 'add_query_vars'));
+    add_action('template_redirect', array($this, 'handle_auth_code_requests'));
+  }
+
+  public function register_handle_auth_code_endpoints() {
+    error_log('register_handle_auth_code_endpoints');
+    add_rewrite_rule('^handle-auth-code/?', 'index.php?handle-auth-code=1', 'top');
+  }
+
+  public function handle_auth_code_requests() {
+    error_log('handle_auth_code_requests');
+    global $wp_query;
+    if (isset($wp_query->query_vars['handle-auth-code'])) {
+      $this->handle_auth_code_endpoint();
+    }
+  }
+
+  public function add_query_vars($vars) {
+    error_log('add_query_vars');
+    $vars[] = 'handle-auth-code';
+    return $vars;
+  }
+
+  public function handle_auth_code_endpoint() {
+    error_log('handle_auth_code_endpoint');
+    if (!isset($_GET['code'])) {
+      wp_die('Authorization code not provided');
+    }
+
+    $authorization_code = sanitize_text_field($_GET['code']);
+    $this->authorization_code = $authorization_code;
+
+    try {
+      $keycloak_token_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/token";
+
+      $data = [
+        'grant_type' => 'authorization_code',
+        'client_id' => $this->client_id,
+        'client_secret' => $this->client_secret,
+        'redirect_uri' => site_url($this->handle_auth_code_path),
+        'code' => $this->authorization_code,
+      ];
+
+      $options = [
+        'http' => [
+          'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+          'method'  => 'POST',
+          'content' => http_build_query($data),
+        ],
+      ];
+
+      $context  = stream_context_create($options);
+      $response = file_get_contents($keycloak_token_url, false, $context);
+
+      if ($response === FALSE) {
+        wp_die('Error occurred during token request');
+      }
+
+      $token = json_decode($response);
+      $access_token = $token->access_token;
+
+//      $this->set_wordpress_user($access_token);
+
+//      wp_redirect(site_url());
+      exit;
+
+    } catch (Exception $e) {
+      error_log('Error handling auth code: ' . $e->getMessage());
+      wp_die('Error processing authorization code');
+    }
   }
 
   public function init_auth() {
     if (is_admin() || wp_doing_ajax()) {
       return;
     }
-    error_log('Is main page ' . is_page() && site_url($this->login_redirect_path) === home_url(add_query_arg(null, null)));
-
-    error_log('Login path '. $this->login_path);
 
     $page_login = get_page_by_path( $this->login_path );
 
@@ -90,9 +159,6 @@ class KeycloakSSOIntegration {
     }
 
     $login_page_id = $page_login->ID;
-
-    error_log('Isset cookie: ' . isset($_COOKIE[$this->cookie_name]));
-    error_log('Is login page: ' . is_page($login_page_id));
 
 //    if (isset($_COOKIE[$this->cookie_name])) {
 //      $token = $_COOKIE[$this->cookie_name];
@@ -373,8 +439,8 @@ class KeycloakSSOIntegration {
   }
 
   private function get_keycloak_auth_url() {
-    $redirect_uri = site_url($this->login_redirect_path); // The URL Keycloak should redirect to after successful login
-    $state = bin2hex(random_bytes(16)); // Optional, to maintain state between requests
+    $redirect_uri = site_url($this->handle_auth_code_path);
+    $state = bin2hex(random_bytes(16));
 
     // Construct the authorization URL
     $auth_url = "http://localhost:8888/realms/{$this->realm}/protocol/openid-connect/auth";
