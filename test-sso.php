@@ -60,6 +60,7 @@ class KeycloakSSOIntegration {
     add_shortcode('keycloak_login_form', array($this, 'login_form_shortcode'));
     add_shortcode('keycloak_signup_form', array($this, 'signup_form_shortcode'));
     add_shortcode('keycloak_change_password_form', array($this, 'change_password_form_shortcode'));
+    add_shortcode('keycloak_forgot_password_form', array($this, 'forgot_password_form_shortcode'));
     add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
 
     add_action('admin_menu', array($this, 'add_admin_menu'));
@@ -311,6 +312,41 @@ class KeycloakSSOIntegration {
     return ob_get_clean();
   }
 
+  public function forgot_password_form_shortcode() {
+    ob_start();
+    ?>
+    <button id="keycloak-forgot-password-btn">Forgot password with Keycloak</button>
+
+    <script>
+        jQuery(document).ready(function ($) {
+            $('#keycloak-forgot-password-btn').on('click', function (e) {
+                e.preventDefault();
+
+                var keycloakAuthUrl = '<?php echo $this->get_keycloak_forgot_password_url(); ?>';
+                console.log(keycloakAuthUrl)
+                var popup = window.open(keycloakAuthUrl, 'keycloakSignup', 'width=600,height=700');
+
+                if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+                    alert('Popup blocked! Please allow popups for this website.');
+                    return;
+                }
+                window.addEventListener('message', function (event) {
+                    if (event.origin !== window.location.origin) {
+                        return;
+                    }
+
+                    if (event.data.status === 'logged_in') {
+                        console.log(event.data.token)
+                        window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
+                    }
+                }, false);
+            });
+        });
+    </script>
+    <?php
+    return ob_get_clean();
+  }
+
   public function handle_signup() {
     $username = $_POST['username'];
     $email = $_POST['email'];
@@ -501,6 +537,19 @@ class KeycloakSSOIntegration {
     $auth_url .= '&redirect_uri=' . urlencode($redirect_uri);
     $auth_url .= '&scope=' . urlencode('openid');
     $auth_url .= '&kc_action=' . 'UPDATE_PASSWORD';
+
+    return $auth_url;
+  }
+
+  private function get_keycloak_forgot_password_url() {
+    $redirect_uri = site_url($this->handle_auth_code_path);
+
+    // Construct the authorization URL
+    $auth_url = "{$this->keycloak_url}/realms/{$this->realm}/login-actions/reset-credentials";
+    $auth_url .= '?response_type=code';
+    $auth_url .= '&client_id=' . urlencode($this->client_id);
+    $auth_url .= '&redirect_uri=' . urlencode($redirect_uri);
+    $auth_url .= '&scope=' . urlencode('openid');
 
     return $auth_url;
   }
