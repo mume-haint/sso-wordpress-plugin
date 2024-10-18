@@ -1,3 +1,5 @@
+
+
 <?php
 /*
 Plugin Name: Test SSO
@@ -5,7 +7,7 @@ Description: Integrates Keycloak SSO into WordPress using OpenID Connect (Multi-
 Version: 1.2
 Author: Khoi Tran (Updated by Assistant)
 */
-
+/*
 require __DIR__ . '/vendor/autoload.php';
 
 use Jumbojett\OpenIDConnectClient;
@@ -657,4 +659,4 @@ add_action('wp_ajax_nopriv_keycloak_login', array($keycloak_sso, 'handle_login')
 add_action('wp_ajax_keycloak_login', array($keycloak_sso, 'handle_login'));
 add_action('wp_ajax_nopriv_keycloak_signup', array($keycloak_sso, 'handle_signup'));
 add_action('wp_ajax_keycloak_signup', array($keycloak_sso, 'handle_signup'));
-
+*/
