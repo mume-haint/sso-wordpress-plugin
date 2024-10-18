@@ -1,12 +1,19 @@
 <?php
 
 class KeycloakShortcodes {
-  private $handle_auth_code_path = 'handle-auth-code';
-  private $realm;
-  private $client_id;
-  private $keycloak_url;
-  private $login_redirect_path;
-  public function __construct() {
+  private string $handle_auth_code_path = 'handle-auth-code';
+  private string $realm;
+  private string $client_id;
+  private string $keycloak_url;
+  private string $login_redirect_path;
+  public function __construct($realm, $client_id, $keycloak_url, $login_redirect_path) {
+    $this->realm = $realm;
+    $this->client_id = $client_id;
+    $this->keycloak_url = $keycloak_url;
+    $this->login_redirect_path = $login_redirect_path;
+
+
+    error_log('Add shortcode');
     add_shortcode('keycloak_login_form', array($this, 'login_form_shortcode'));
     add_shortcode('keycloak_signup_form', array($this, 'signup_form_shortcode'));
     add_shortcode('keycloak_change_password_form', array($this, 'change_password_form_shortcode'));

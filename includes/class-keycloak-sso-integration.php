@@ -8,9 +8,9 @@ class KeycloakSSOIntegration {
   private $client_secret;
   private $keycloak_url;
   private $login_path;
-  private $handle_auth_code_path = 'handle-auth-code';
+  private string $handle_auth_code_path = 'handle-auth-code';
   private $login_redirect_path;
-  private $authorization_code;
+  private string $authorization_code;
 
   public function __construct() {
     $this->realm = get_option('keycloak_realm', 'wordpress');
@@ -19,6 +19,8 @@ class KeycloakSSOIntegration {
     $this->keycloak_url = get_option('keycloak_url', 'http://host.docker.internal:8888');
     $this->login_path = get_option('keycloak_login_page_path', '/login');
     $this->login_redirect_path = get_option('keycloak_login_redirect_path', '');
+
+
 
     $this->oidc = new OpenIDConnectClient(
       "{$this->keycloak_url}/realms/{$this->realm}",
@@ -35,20 +37,26 @@ class KeycloakSSOIntegration {
 
     $this->oidc->addScope(['openid', 'profile', 'email']);
 
+
     // Add hooks
     add_action('wp', array($this, 'init_auth'));
-//    add_action('wp_logout', array($this, 'logout'));
-    add_shortcode('keycloak_login_form', array($this, 'login_form_shortcode'));
-    add_shortcode('keycloak_signup_form', array($this, 'signup_form_shortcode'));
-    add_shortcode('keycloak_change_password_form', array($this, 'change_password_form_shortcode'));
-    add_shortcode('keycloak_forgot_password_form', array($this, 'forgot_password_form_shortcode'));
     add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
 
-    add_action('admin_menu', array($this, 'add_admin_menu'));
-    add_action('admin_init', array($this, 'register_settings'));
     add_action('init', array($this, 'register_handle_auth_code_endpoints'));
     add_filter('query_vars', array($this, 'add_query_vars'));
     add_action('template_redirect', array($this, 'handle_auth_code_requests'));
+
+    if (class_exists('KeycloakAuth')) {
+      new KeycloakAuth($this->oidc, $this->login_redirect_path);
+    }
+
+    error_log("Class short code exists: " . class_exists('KeycloakShortcodes'));
+    if (class_exists('KeycloakShortcodes')) {
+      new KeycloakShortcodes($this->realm, $this->client_id, $this->keycloak_url, $this->login_redirect_path);
+    }
+    if (class_exists('KeycloakSettings')) {
+      new KeycloakSettings();
+    }
   }
 
   public function enqueue_scripts() {
