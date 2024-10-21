@@ -14,9 +14,9 @@ class KeycloakSSOIntegration {
 
   public function __construct() {
     $this->realm = get_option('keycloak_realm', 'wordpress');
-    $this->client_id = get_option('keycloak_client_id', 'demo-client');
-    $this->client_secret = get_option('keycloak_client_secret', 'PNFIKU0jUX4DCC27TsZgVS8E8r8dIk53');
-    $this->keycloak_url = get_option('keycloak_url', 'http://host.docker.internal:8888');
+    $this->client_id = get_option('keycloak_client_id', '');
+    $this->client_secret = get_option('keycloak_client_secret', '');
+    $this->keycloak_url = get_option('keycloak_url', '');
     $this->login_path = get_option('keycloak_login_page_path', '/login');
     $this->login_redirect_path = get_option('keycloak_login_redirect_path', '');
 
@@ -50,7 +50,6 @@ class KeycloakSSOIntegration {
       new KeycloakAuth($this->oidc, $this->login_redirect_path);
     }
 
-    error_log("Class short code exists: " . class_exists('KeycloakShortcodes'));
     if (class_exists('KeycloakShortcodes')) {
       new KeycloakShortcodes($this->realm, $this->client_id, $this->keycloak_url, $this->login_redirect_path);
     }
@@ -84,22 +83,18 @@ class KeycloakSSOIntegration {
       handle_auth_code_endpoint();
       exit;
     }
-    error_log('handle_auth_code_requests');
     global $wp_query;
-    error_log(json_encode($wp_query->query_vars));
     if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-auth-code') {
       $this->handle_auth_code_endpoint();
     }
   }
 
   public function add_query_vars($vars) {
-    error_log('add_query_vars');
     $vars[] = 'handle-auth-code';
     return $vars;
   }
 
   public function handle_auth_code_endpoint() {
-    error_log('handle_auth_code_endpoint');
     if (!isset($_GET['code'])) {
       wp_die('Authorization code not provided');
     }
@@ -135,7 +130,6 @@ class KeycloakSSOIntegration {
 
       $token = json_decode($response);
       $access_token = $token->access_token;
-      error_log('Access token: '. $access_token);
       ?>
       <script>
           if (window.opener) {
