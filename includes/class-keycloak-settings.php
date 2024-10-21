@@ -24,7 +24,6 @@ class KeycloakSettings
     register_setting('keycloak_sso_settings_group', 'keycloak_client_secret');
     register_setting('keycloak_sso_settings_group', 'keycloak_url');
     register_setting('keycloak_sso_settings_group', 'keycloak_realm');
-    register_setting('keycloak_sso_settings_group', 'keycloak_login_page_path');
     register_setting('keycloak_sso_settings_group', 'keycloak_login_redirect_path');
   }
 
@@ -60,10 +59,6 @@ class KeycloakSettings
           <tr valign="top">
             <th scope="row">Realm</th>
             <td><input type="text" name="keycloak_realm" value="<?php echo esc_attr(get_option('keycloak_realm')); ?>" style="width: 400px;" /></td>
-          </tr>
-          <tr valign="top">
-            <th scope="row">Login Page Path</th>
-            <td><input type="text" name="keycloak_login_page_path" value="<?php echo esc_attr(get_option('keycloak_login_page_path')); ?>" style="width: 400px;" placeholder="/login" /></td>
           </tr>
           <tr valign="top">
             <th scope="row">Login Redirect Path</th>

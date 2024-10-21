@@ -7,7 +7,6 @@ class KeycloakSSOIntegration {
   private $client_id;
   private $client_secret;
   private $keycloak_url;
-  private $login_path;
   private string $handle_auth_code_path = 'handle-auth-code';
   private $login_redirect_path;
   private string $authorization_code;
@@ -17,7 +16,6 @@ class KeycloakSSOIntegration {
     $this->client_id = get_option('keycloak_client_id', '');
     $this->client_secret = get_option('keycloak_client_secret', '');
     $this->keycloak_url = get_option('keycloak_url', '');
-    $this->login_path = get_option('keycloak_login_page_path', '/login');
     $this->login_redirect_path = get_option('keycloak_login_redirect_path', '');
 
 
@@ -39,7 +37,6 @@ class KeycloakSSOIntegration {
 
 
     // Add hooks
-    add_action('wp', array($this, 'init_auth'));
     add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
 
     add_action('init', array($this, 'register_handle_auth_code_endpoints'));
@@ -60,18 +57,6 @@ class KeycloakSSOIntegration {
 
   public function enqueue_scripts() {
     wp_enqueue_script('jquery');
-  }
-
-  public function init_auth() {
-    if (is_admin() || wp_doing_ajax()) {
-      return;
-    }
-
-    $page_login = get_page_by_path( $this->login_path );
-
-    if (!$page_login) {
-      error_log('Login page not found.');
-    }
   }
 
   public function register_handle_auth_code_endpoints() {
