@@ -3,6 +3,7 @@ use Jumbojett\OpenIDConnectClient;
 
 class KeycloakSSOIntegration {
   private $oidc;
+  private $auth;
   private $realm;
   private $client_id;
   private $client_secret;
@@ -44,11 +45,11 @@ class KeycloakSSOIntegration {
     add_action('template_redirect', array($this, 'handle_auth_code_requests'));
 
     if (class_exists('KeycloakAuth')) {
-      new KeycloakAuth($this->oidc, $this->login_redirect_path);
+      $this->auth = new KeycloakAuth();
     }
 
     if (class_exists('KeycloakShortcodes')) {
-      new KeycloakShortcodes($this->realm, $this->client_id, $this->keycloak_url, $this->login_redirect_path);
+      new KeycloakShortcodes($this->realm, $this->client_id, $this->keycloak_url, $this->login_redirect_path, $this->auth);
     }
     if (class_exists('KeycloakSettings')) {
       new KeycloakSettings();
@@ -115,6 +116,9 @@ class KeycloakSSOIntegration {
 
       $token = json_decode($response);
       $access_token = $token->access_token;
+      if($access_token) {
+        $this->auth->set_auth_cookie($access_token);
+      }
       ?>
       <script>
           if (window.opener) {

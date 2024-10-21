@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Test SSO
+Plugin Name: SSO Wordpress plugin
 Description: Integrates Keycloak SSO into WordPress using OpenID Connect (Multi-site Support) with Signup Feature
 Version: 1.2
 Author: haint (Updated by Assistant)

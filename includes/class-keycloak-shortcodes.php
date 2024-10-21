@@ -2,22 +2,24 @@
 
 class KeycloakShortcodes {
   private string $handle_auth_code_path = 'handle-auth-code';
+  private $auth;
   private string $realm;
   private string $client_id;
   private string $keycloak_url;
   private string $login_redirect_path;
-  public function __construct($realm, $client_id, $keycloak_url, $login_redirect_path) {
+  public function __construct($realm, $client_id, $keycloak_url, $login_redirect_path, $auth) {
     $this->realm = $realm;
     $this->client_id = $client_id;
     $this->keycloak_url = $keycloak_url;
     $this->login_redirect_path = $login_redirect_path;
-
+    $this->auth = $auth;
 
     error_log('Add shortcode');
     add_shortcode('keycloak_login_form', array($this, 'login_form_shortcode'));
     add_shortcode('keycloak_signup_form', array($this, 'signup_form_shortcode'));
     add_shortcode('keycloak_change_password_form', array($this, 'change_password_form_shortcode'));
     add_shortcode('keycloak_forgot_password_form', array($this, 'forgot_password_form_shortcode'));
+    add_shortcode('keycloak_logout_form', array($this, 'logout_form_shortcode'));
   }
   public function login_form_shortcode()
   {
@@ -44,6 +46,7 @@ class KeycloakShortcodes {
 
                     if (event.data.status === 'logged_in') {
                         console.log(event.data.token)
+
                         window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
                     }
                 }, false);
@@ -101,7 +104,7 @@ class KeycloakShortcodes {
 
                 var keycloakAuthUrl = '<?php echo $this->get_keycloak_change_password_url(); ?>';
                 console.log(keycloakAuthUrl)
-                var popup = window.open(keycloakAuthUrl, 'keycloakSignup', 'width=600,height=700');
+                var popup = window.open(keycloakAuthUrl, 'keycloakChangePassword', 'width=600,height=700');
 
                 if (!popup || popup.closed || typeof popup.closed == 'undefined') {
                     alert('Popup blocked! Please allow popups for this website.');
@@ -136,7 +139,7 @@ class KeycloakShortcodes {
 
                 var keycloakAuthUrl = '<?php echo $this->get_keycloak_forgot_password_url(); ?>';
                 console.log(keycloakAuthUrl)
-                var popup = window.open(keycloakAuthUrl, 'keycloakSignup', 'width=600,height=700');
+                var popup = window.open(keycloakAuthUrl, 'keycloakForgotPassword', 'width=600,height=700');
 
                 if (!popup || popup.closed || typeof popup.closed == 'undefined') {
                     alert('Popup blocked! Please allow popups for this website.');
@@ -152,6 +155,29 @@ class KeycloakShortcodes {
                         window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
                     }
                 }, false);
+            });
+        });
+    </script>
+    <?php
+    return ob_get_clean();
+  }
+
+  public function logout_form_shortcode() {
+    ob_start();
+    ?>
+    <button id="keycloak-logout-btn">Logout with Keycloak</button>
+
+    <script>
+        jQuery(document).ready(function ($) {
+            $('#keycloak-logout-btn').on('click', function (e) {
+                e.preventDefault();
+
+                var keycloakLogoutUrl = '<?php echo $this->get_keycloak_logout_url(); ?>';
+                var popup = window.open(keycloakLogoutUrl, 'keycloakLogout', 'width=600,height=700');
+
+                if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+                    alert('Popup blocked! Please allow popups for this website.');
+                }
             });
         });
     </script>
@@ -212,5 +238,11 @@ class KeycloakShortcodes {
     $auth_url .= '&scope=' . urlencode('openid');
 
     return $auth_url;
+  }
+
+  private function get_keycloak_logout_url() {
+
+    // Construct the authorization URL
+    return "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/logout";
   }
 }
