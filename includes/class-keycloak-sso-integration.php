@@ -61,13 +61,13 @@ class KeycloakSSOIntegration {
   }
 
   public function register_handle_auth_code_endpoints() {
-    add_rewrite_rule('^handle-auth-code/?', 'index.php?handle-auth-code=1', 'top');
+    add_rewrite_rule('^handle-auth-code', 'index.php?handle-auth-code=true', 'top');
   }
 
   public function handle_auth_code_requests() {
-    if (get_query_var('handle-auth-code') == 'true') {
-      handle_auth_code_endpoint();
-      exit;
+    if (get_query_var('handle-auth-code')) {
+      $this->handle_auth_code_endpoint();
+      return;
     }
     global $wp_query;
     if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-auth-code') {
