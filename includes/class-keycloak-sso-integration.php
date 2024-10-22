@@ -171,6 +171,11 @@ class KeycloakSSOIntegration {
   public function handle_logout_keycloak() {
 
     $user_id = get_current_user_id();
+    error_log('Current user id: '. $user_id);
+    setcookie('keycloak_access_token', '', time() - 3600, '/');
+    setcookie('keycloak_id_token', '', time() - 3600, '/');
+
+    wp_logout();
     if ($user_id) {
 
       setcookie('keycloak_access_token', '', time() - 3600, '/');

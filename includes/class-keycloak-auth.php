@@ -45,6 +45,7 @@ class KeycloakAuth
       $user = get_user_by('email', $user_email);
       if (!$user) {
         $user_id = wp_create_user($user_info->preferred_username, wp_generate_password(), $user_email);
+        error_log('User ID: ' . $user_id);
         $user = get_user_by('id', $user_id);
       }
 
