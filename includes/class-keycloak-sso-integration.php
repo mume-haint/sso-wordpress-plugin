@@ -45,7 +45,7 @@ class KeycloakSSOIntegration {
     add_action('template_redirect', array($this, 'handle_auth_code_requests'));
 
     if (class_exists('KeycloakAuth')) {
-      $this->auth = new KeycloakAuth();
+      $this->auth = new KeycloakAuth($this->oidc);
     }
 
     if (class_exists('KeycloakShortcodes')) {
@@ -62,21 +62,35 @@ class KeycloakSSOIntegration {
 
   public function register_handle_auth_code_endpoints() {
     add_rewrite_rule('^handle-auth-code', 'index.php?handle-auth-code=true', 'top');
+    add_rewrite_rule('^handle-logout-keycloak', 'index.php?handle-logout-keycloak=true', 'top');
   }
 
   public function handle_auth_code_requests() {
+    global $wp_query;
+
     if (get_query_var('handle-auth-code')) {
       $this->handle_auth_code_endpoint();
       return;
     }
-    global $wp_query;
+
+    if (get_query_var('handle-logout-keycloak')) {
+      $this->handle_logout_keycloak();
+      return;
+    }
+
     if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-auth-code') {
       $this->handle_auth_code_endpoint();
+      return;
+    }
+
+    if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-logout-keycloak') {
+      $this->handle_logout_keycloak();
     }
   }
 
   public function add_query_vars($vars) {
     $vars[] = 'handle-auth-code';
+    $vars[] = 'handle-logout-keycloak';
     return $vars;
   }
 
@@ -109,15 +123,19 @@ class KeycloakSSOIntegration {
 
       $context  = stream_context_create($options);
       $response = file_get_contents($keycloak_token_url, false, $context);
-
       if ($response === FALSE) {
         wp_die('Error occurred during token request');
       }
 
       $token = json_decode($response);
       $access_token = $token->access_token;
+      $id_token = $token->id_token;
       if($access_token) {
         $this->auth->set_auth_cookie($access_token);
+        $this->auth->set_wordpress_user($access_token);
+      }
+      if($id_token) {
+        $this->auth->set_id_token_cookie($id_token);
       }
       ?>
       <script>
@@ -136,11 +154,12 @@ class KeycloakSSOIntegration {
               }
 
               window.close();
+          } else {
+              window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
           }
       </script>
 
       <?php
-//      $this->set_wordpress_user($access_token);
       exit;
 
     } catch (Exception $e) {
@@ -149,5 +168,33 @@ class KeycloakSSOIntegration {
     }
   }
 
+  public function handle_logout_keycloak() {
 
+    $user_id = get_current_user_id();
+    if ($user_id) {
+
+      setcookie('keycloak_access_token', '', time() - 3600, '/');
+      setcookie('keycloak_id_token', '', time() - 3600, '/');
+
+      wp_logout();
+
+      ?>
+      <script>
+          if (window.opener) {
+              console.log('This page was opened as a popup.');
+              window.opener.postMessage({
+                  status: 'logged_out',
+                  message: 'User successfully logged out!',
+              }, window.location.origin);
+
+              window.close();
+          } else {
+              window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
+          }
+      </script>
+<?php
+    } else {
+      wp_send_json_error('No user found to logout.');
+    }
+  }
 }

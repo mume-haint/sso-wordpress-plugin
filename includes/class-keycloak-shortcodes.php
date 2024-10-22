@@ -2,6 +2,8 @@
 
 class KeycloakShortcodes {
   private string $handle_auth_code_path = 'handle-auth-code';
+
+  private string $handle_logout_path = 'handle-logout-keycloak';
   private $auth;
   private string $realm;
   private string $client_id;
@@ -173,13 +175,21 @@ class KeycloakShortcodes {
         jQuery(document).ready(function ($) {
             $('#keycloak-logout-btn').on('click', function (e) {
                 e.preventDefault();
-
                 var keycloakLogoutUrl = '<?php echo $this->get_keycloak_logout_url(); ?>';
                 var popup = window.open(keycloakLogoutUrl, 'keycloakLogout', 'width=600,height=700');
 
                 if (!popup || popup.closed || typeof popup.closed == 'undefined') {
                     alert('Popup blocked! Please allow popups for this website.');
                 }
+                window.addEventListener('message', function (event) {
+                    if (event.origin !== window.location.origin) {
+                        return;
+                    }
+
+                    if (event.data.status === 'logged_out') {
+                        window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
+                    }
+                }, false);
             });
         });
     </script>
@@ -243,8 +253,13 @@ class KeycloakShortcodes {
   }
 
   private function get_keycloak_logout_url() {
-
+    $redirect_uri = site_url($this->handle_logout_path);
+    $id_token = $_COOKIE['keycloak_id_token'];
     // Construct the authorization URL
-    return "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/logout";
+    $auth_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/logout";
+    $auth_url .= '?post_logout_redirect_uri=' . urlencode($redirect_uri);
+    $auth_url .= '&id_token_hint=' . $id_token;
+
+    return $auth_url;
   }
 }
