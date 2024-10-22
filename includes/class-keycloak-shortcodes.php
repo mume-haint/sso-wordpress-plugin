@@ -39,13 +39,15 @@ class KeycloakShortcodes {
                     alert('Popup blocked! Please allow popups for this website.');
                     return;
                 }
+                console.log('opened popup from main page');
+
                 window.addEventListener('message', function (event) {
                     if (event.origin !== window.location.origin) {
                         return;
                     }
 
                     if (event.data.status === 'logged_in') {
-                        console.log(event.data.token)
+                        console.log('token received: ', event.data.token)
 
                         window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
                     }

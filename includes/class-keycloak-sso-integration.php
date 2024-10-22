@@ -125,6 +125,7 @@ class KeycloakSSOIntegration {
               console.log('This page was opened as a popup.');
               let token = '<?php echo $access_token; ?>'
               if (token) {
+                  console.log('send token to main page: ', token);
                   window.opener.postMessage({
                       status: 'logged_in',
                       message: 'User successfully logged in!',
@@ -140,8 +141,6 @@ class KeycloakSSOIntegration {
 
       <?php
 //      $this->set_wordpress_user($access_token);
-
-      wp_redirect(site_url());
       exit;
 
     } catch (Exception $e) {
