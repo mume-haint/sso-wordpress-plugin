@@ -34,3 +34,9 @@ function keycloak_sso_uninstall() {
   delete_option('keycloak_realm');
   delete_option('keycloak_login_redirect_path');
 }
+
+add_action('wp_enqueue_scripts','sso_js_init');
+
+function sso_js_init() {
+  wp_enqueue_script_module( 'keycloak-wp-js', plugins_url( '/js/keycloak-wp.js', __FILE__ ));
+}
