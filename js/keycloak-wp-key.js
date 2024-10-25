@@ -1,0 +1,1 @@
+// File to silently store keycloak adapter variables

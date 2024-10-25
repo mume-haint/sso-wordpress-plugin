@@ -2,27 +2,32 @@ function saveTokens(kc) {
     window.sessionStorage.setItem('token', kc.token);
     window.sessionStorage.setItem('refreshToken', kc.refreshToken);
     window.sessionStorage.setItem('idToken', kc.idToken);
-    
+
     window.sessionStorage.setItem('tokenParsed', JSON.stringify(kc.tokenParsed));
     window.sessionStorage.setItem('refreshTokenParsed', JSON.stringify(kc.refreshTokenParsed));
     window.sessionStorage.setItem('idTokenParsed', JSON.stringify(kc.idTokenParsed));
 }
 
 function restoreTokens(kc) {
-    
-    kc.token = window.sessionStorage.getItem('token');
-    kc.refreshToken = window.sessionStorage.getItem('refreshToken');
-    kc.idToken = window.sessionStorage.getItem('idToken');
-    
-    kc.tokenParsed = JSON.parse(window.sessionStorage.getItem('tokenParsed'));
-    kc.refreshTokenParsed = JSON.parse(window.sessionStorage.getItem('refreshTokenParsed'));
-    kc.idTokenParsed = JSON.parse(window.sessionStorage.getItem('idTokenParsed'));
-    
-    kc.timeSkew = 0;
+    if ( !document.body.classList.contains( 'logged-in' ) ) {
+        kc.token = window.sessionStorage.getItem('token');
+        kc.refreshToken = window.sessionStorage.getItem('refreshToken');
+        kc.idToken = window.sessionStorage.getItem('idToken');
+
+        kc.tokenParsed = JSON.parse(window.sessionStorage.getItem('tokenParsed'));
+        kc.refreshTokenParsed = JSON.parse(window.sessionStorage.getItem('refreshTokenParsed'));
+        kc.idTokenParsed = JSON.parse(window.sessionStorage.getItem('idTokenParsed'));
+
+        kc.timeSkew = 0;
+        var token = kc.token;
+        //call ajax vao function set_wordpress_user\
+        window.location.href = window.location.origin + `/handle-token-endpoint?token=${token}`
+    }
+
 }
 
 function login(scope) {
-    var loginOptions = {  
+    var loginOptions = {
         scope: scope
     };
 
@@ -71,7 +76,7 @@ function login(scope) {
 //     var req = new XMLHttpRequest();
 //     req.open('POST', url, true);
 //     req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    
+
 //     req.onreadystatechange = function () {
 //         if (req.readyState == 4) {
 //             output("Check network to see introspection response");
@@ -115,38 +120,21 @@ function output(data) {
     if (typeof data === 'object') {
         data = JSON.stringify(data, null, '  ');
     }
-    document.getElementById('output').innerHTML = data;
+//     document.getElementById('output').innerHTML = data;
 }
 
 function event(event) {
-    var e = document.getElementById('events').innerHTML;
-    document.getElementById('events').innerHTML = new Date().toLocaleString() + "\t" + event + "\n" + e;
+//     var e = document.getElementById('events').innerHTML;
+//     document.getElementById('events').innerHTML = new Date().toLocaleString() + "\t" + event + "\n" + e;
 }
 import Keycloak from 'https://cdn.jsdelivr.net/npm/keycloak-js@26.0.0/+esm';
 
 const keycloak = new Keycloak({
-    url: "http://auth.sso.beetdev.com",
-    realm: "wp-mail-site-realm",
-    clientId: "wp-site-1",
+    url: ssoData.keycloak_url,
+    realm: ssoData.keycloak_realm,
+    clientId: ssoData.keycloak_client_id,
+
 });
-// try {
-//     const silent_check_sso = window.location.origin + '/wp-content/plugins/sso-wp-master/js/silent-check-sso.html';
-    
-//     const authenticated = await keycloak.init({
-//         onLoad: 'check-sso',
-//         silentCheckSsoRedirectUri: silent_check_sso,
-//         pkceMethod: 'S256'
-//     });
-//     console.log(authenticated)
-//     if (authenticated) {
-//         console.log('User is authenticated');
-//     } else {
-//         console.log('User is not authenticated');
-//     }
-// } catch (error) {
-//     console.error('Failed to initialize adapter:', error);
-// }
-// var keycloak = Keycloak();
 
 keycloak.onAuthSuccess = function () {
     event('Auth Success');
@@ -173,27 +161,29 @@ keycloak.onTokenExpired = function () {
     event('Access token expired.');
 };
 
-// Flow can be changed to 'implicit' or 'hybrid', but then client must enable implicit flow in admin console too 
-const silent_check_sso = window.location.origin + '/wp-content/plugins/sso-wp-master/js/silent-check-sso.html';
+// Flow can be changed to 'implicit' or 'hybrid', but then client must enable implicit flow in admin console too
+const silent_check_sso = window.location.origin + '/wp-content/plugins/sso-wordpress-plugin/js/silent-check-sso.html';
 var initOptions = {
-    // responseMode: 'fragment',
-    // flow: 'standard',
-    // promiseType: 'native', 
-    pkceMethod: 'S256',
-    // 'check-sso' only authenticate the client if the user is already logged-in
-    // if the user is not logged-in the browser will be redirected back to the application and remain unauthenticated.
-    onLoad: 'check-sso', 
-    // 'login-required' authenticate the client if the user is logged-in or display the login page if not
-    // onLoad: 'login-required', 
+    onLoad: 'check-sso',
     silentCheckSsoRedirectUri: silent_check_sso,
-    // enable/disable monitoring login state; creates an hidden iframe that is used to detect if a Single-Sign Out has occurred
-    checkLoginIframe: true
+    checkLoginIframe: true,
+    flow: 'standard',
 };
 
 keycloak.init(initOptions).then(function(authenticated) {
     console.log('Init Success : '+authenticated);
-    output('Init Success (' + (authenticated ? 'Authenticated' : 'Not Authenticated') + ')');		
-    restoreTokens(keycloak);
+    output('Init Success (' + (authenticated ? 'Authenticated' : 'Not Authenticated') + ')');
+    if(authenticated){
+        restoreTokens(keycloak);
+    }else{
+        if ( document.body.classList.contains( 'logged-in' ) ) {
+            var host = window.location.origin;
+            window.location.replace(host+"/handle-logout-keycloak");
+            console.log('User is not authenticated');
+        }
+    }
+
+// 	window.location.replace(window.location.origin+"/handle-auth-code");
 }).catch(function(e) {
     console.log('Init Error', e);
     output('Init Error');

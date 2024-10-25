@@ -35,6 +35,18 @@ function keycloak_sso_uninstall() {
   delete_option('keycloak_login_redirect_path');
 }
 
+add_action('wp_enqueue_scripts','sso_js_init_key');
+function sso_js_init_key()
+{
+  wp_register_script( 'keycloak-wp-js-key', plugins_url( '/js/keycloak-wp-key.js', __FILE__ ));
+  wp_localize_script( 'keycloak-wp-js-key', 'ssoData', array(
+    'keycloak_url' => get_option('keycloak_url'),
+    'keycloak_client_id' => get_option('keycloak_client_id'),
+    'keycloak_realm' => get_option('keycloak_realm')
+  ));
+  wp_enqueue_script( 'keycloak-wp-js-key' );
+}
+
 add_action('wp_enqueue_scripts','sso_js_init');
 
 function sso_js_init() {

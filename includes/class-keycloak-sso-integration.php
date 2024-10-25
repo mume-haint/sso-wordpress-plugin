@@ -43,13 +43,12 @@ class KeycloakSSOIntegration {
     add_action('init', array($this, 'register_handle_auth_code_endpoints'));
     add_filter('query_vars', array($this, 'add_query_vars'));
     add_action('template_redirect', array($this, 'handle_auth_code_requests'));
-      add_action('rest_api_init', function () {
-          register_rest_route('keycloak', '/logout', array(
-              'methods' => 'POST',
-              'callback' => array($this, 'handle_back_channel_logout'),
-              'permission_callback' => '__return_true',
-          ));
-      });
+
+    function your_function() {
+      // delete cookie
+
+    }
+    add_action('wp_logout', 'your_function');
 
     if (class_exists('KeycloakAuth')) {
       $this->auth = new KeycloakAuth($this->oidc);
@@ -70,8 +69,7 @@ class KeycloakSSOIntegration {
   public function register_handle_auth_code_endpoints() {
     add_rewrite_rule('^handle-auth-code', 'index.php?handle-auth-code=true', 'top');
     add_rewrite_rule('^handle-logout-keycloak', 'index.php?handle-logout-keycloak=true', 'top');
-      add_rewrite_rule('^handle-front-channel-logout', 'index.php?handle-front-channel-logout=true', 'top');
-
+    add_rewrite_rule('^handle-token-endpoint', 'index.php?handle-token-endpoint=true', 'top');
   }
 
   public function handle_auth_code_requests() {
@@ -86,12 +84,13 @@ class KeycloakSSOIntegration {
       $this->handle_logout_keycloak();
       return;
     }
+    if (get_query_var('handle-token-endpoint')) {
+      $this->handle_token_endpoint();
+      return;
+    }
 
 
-      if (get_query_var('handle-front-channel-logout')) {
-          $this->handle_front_channel_logout();
-          return;
-      }
+
 
     if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-auth-code') {
       $this->handle_auth_code_endpoint();
@@ -103,24 +102,36 @@ class KeycloakSSOIntegration {
       return;
     }
 
-      if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-front-channel-logout') {
-          $this->handle_front_channel_logout();
-      }
+    if (isset($wp_query->query_vars['name']) && $wp_query->query_vars['name'] == 'handle-token-endpoint') {
+      $this->handle_token_endpoint();
+    }
   }
 
   public function add_query_vars($vars) {
     $vars[] = 'handle-auth-code';
     $vars[] = 'handle-logout-keycloak';
-      $vars[] = 'handle-front-channel-logout';
+    $vars[] = 'handle-token-endpoint';
 
-      return $vars;
+    return $vars;
+  }
+
+  public function handle_token_endpoint() {
+    if (!isset($_GET['token'])) {
+      wp_die('Token not provided');
+    }
+
+    $access_token = $_GET['token'];
+
+    $this->auth->set_auth_cookie($access_token);
+    $this->auth->set_wordpress_user($access_token);
+
+    header("Location: /{$this->login_redirect_path}");
   }
 
   public function handle_auth_code_endpoint() {
     if (!isset($_GET['code'])) {
       wp_die('Authorization code not provided');
     }
-
     $authorization_code = sanitize_text_field($_GET['code']);
     $this->authorization_code = $authorization_code;
 
@@ -155,6 +166,7 @@ class KeycloakSSOIntegration {
       if($access_token) {
         $this->auth->set_auth_cookie($access_token);
         $this->auth->set_wordpress_user($access_token);
+        // Todo: handle role for login user
       }
       if($id_token) {
         $this->auth->set_id_token_cookie($id_token);
@@ -214,48 +226,10 @@ class KeycloakSSOIntegration {
               window.location.href = '<?php echo site_url($this->login_redirect_path) ?>'
           }
       </script>
-<?php
+      <?php
     } else {
       wp_send_json_error('No user found to logout.');
     }
   }
-
-    public function handle_front_channel_logout() {
-        $host = $_SERVER['HTTP_HOST'];
-        $uri = $_SERVER['REQUEST_URI'];
-
-      error_log($host);
-      error_log($uri);
-    }
-
-    function handle_back_channel_logout(WP_REST_Request $request) {
-      error_log('handle_back_channel_logout' . json_decode($request));
-        $logout_token = $request->get_param('logout_token');
-
-        if (!$logout_token) {
-            return new WP_REST_Response('Invalid logout token', 400);
-        }
-
-        $keycloak_jwks_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/certs";
-        $jwks = json_decode(file_get_contents($keycloak_jwks_url), true);
-
-        $decoded_token = decode_jwt($logout_token, $jwks);
-        if (!$decoded_token || !isset($decoded_token->sub)) {
-            return new WP_REST_Response('Invalid token', 401);
-        }
-
-        $user = get_user_by('email', $decoded_token->email);
-        if (!$user) {
-            return new WP_REST_Response('User not found', 404);
-        }
-
-        wp_logout();
-
-        setcookie('keycloak_access_token', '', time() - 3600, '/');
-        setcookie('keycloak_id_token', '', time() - 3600, '/');
-
-        return new WP_REST_Response('User logged out successfully', 200);
-    }
-
 
 }
