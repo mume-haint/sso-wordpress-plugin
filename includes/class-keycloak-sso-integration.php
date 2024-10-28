@@ -125,7 +125,8 @@ class KeycloakSSOIntegration {
     $this->auth->set_auth_cookie($access_token);
     $this->auth->set_wordpress_user($access_token);
 
-    header("Location: /{$this->login_redirect_path}");
+    $redirect_url = site_url("/{$this->login_redirect_path}");
+    header("Location: {$redirect_url}");
   }
 
   public function handle_auth_code_endpoint() {
