@@ -6,7 +6,7 @@ class KeycloakSSOIntegration {
   private $auth;
   private $realm;
   private $client_id;
-  private $client_secret;
+//  private $client_secret;
   private $keycloak_url;
   private string $handle_auth_code_path = 'handle-auth-code';
   private $login_redirect_path;
@@ -15,7 +15,7 @@ class KeycloakSSOIntegration {
   public function __construct() {
     $this->realm = get_option('keycloak_realm', 'wordpress');
     $this->client_id = get_option('keycloak_client_id', '');
-    $this->client_secret = get_option('keycloak_client_secret', '');
+//    $this->client_secret = get_option('keycloak_client_secret', '');
     $this->keycloak_url = get_option('keycloak_url', '');
     $this->login_redirect_path = get_option('keycloak_login_redirect_path', '');
 
@@ -23,8 +23,8 @@ class KeycloakSSOIntegration {
 
     $this->oidc = new OpenIDConnectClient(
       "{$this->keycloak_url}/realms/{$this->realm}",
-      $this->client_id,
-      $this->client_secret
+      $this->client_id
+//      $this->client_secret
     );
 
     $this->oidc->providerConfigParam([
@@ -141,7 +141,7 @@ class KeycloakSSOIntegration {
       $data = [
         'grant_type' => 'authorization_code',
         'client_id' => $this->client_id,
-        'client_secret' => $this->client_secret,
+//        'client_secret' => $this->client_secret,
         'redirect_uri' => site_url($this->handle_auth_code_path),
         'code' => $this->authorization_code,
       ];

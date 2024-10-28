@@ -29,7 +29,7 @@ register_uninstall_hook(__FILE__, 'keycloak_sso_uninstall');
  */
 function keycloak_sso_uninstall() {
   delete_option('keycloak_client_id');
-  delete_option('keycloak_client_secret');
+//  delete_option('keycloak_client_secret');
   delete_option('keycloak_url');
   delete_option('keycloak_realm');
   delete_option('keycloak_login_redirect_path');
