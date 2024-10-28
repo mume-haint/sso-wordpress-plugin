@@ -39,7 +39,10 @@ class KeycloakSettings
         <table class="form-table">
           <tr valign="top">
             <th scope="row">Client ID</th>
-            <td><input type="text" name="keycloak_client_id" value="<?php echo esc_attr(get_option('keycloak_client_id')); ?>" style="width: 400px;" /></td>
+            <td>
+              <input type="text" name="keycloak_client_id" value="<?php echo esc_attr(get_option('keycloak_client_id')); ?>" style="width: 400px;" placeholder="Ex: keycloak_client_id" />
+              <p style="font-size: 14px; margin-top: 5px;">* Client must be of type <strong>public</strong> because this plugin uses the keycloak-javascript-adapter, which does not support client_secret.</p>
+            </td>
           </tr>
 <!--          <tr valign="top">-->
 <!--            <th scope="row">Client Secret</th>-->
@@ -54,11 +57,14 @@ class KeycloakSettings
 <!--          </tr>-->
           <tr valign="top">
             <th scope="row">Keycloak URL</th>
-            <td><input type="text" name="keycloak_url" value="<?php echo esc_attr(get_option('keycloak_url')); ?>" style="width: 400px;" /></td>
+            <td>
+              <input type="text" name="keycloak_url" value="<?php echo esc_attr(get_option('keycloak_url')); ?>" style="width: 400px;" placeholder="Ex: https://keycloak_url" />
+              <p style="font-size: 14px; margin-top: 5px;">* Keycloak must use <strong>HTTPS</strong> due to secure context requirements in the keycloak-js-adapter package.</p>
+            </td>
           </tr>
           <tr valign="top">
             <th scope="row">Realm</th>
-            <td><input type="text" name="keycloak_realm" value="<?php echo esc_attr(get_option('keycloak_realm')); ?>" style="width: 400px;" /></td>
+            <td><input type="text" name="keycloak_realm" value="<?php echo esc_attr(get_option('keycloak_realm')); ?>" style="width: 400px;" placeholder="Ex: keycloak_realm" /></td>
           </tr>
           <tr valign="top">
             <th scope="row">Login Redirect Path</th>
