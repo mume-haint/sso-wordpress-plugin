@@ -44,11 +44,7 @@ class KeycloakSSOIntegration {
     add_filter('query_vars', array($this, 'add_query_vars'));
     add_action('template_redirect', array($this, 'handle_auth_code_requests'));
 
-    function your_function() {
-      // delete cookie
-
-    }
-    add_action('wp_logout', 'your_function');
+    add_action('wp_logout', array($this, 'wordpress_logout_action'));
 
     if (class_exists('KeycloakAuth')) {
       $this->auth = new KeycloakAuth($this->oidc);
@@ -64,6 +60,19 @@ class KeycloakSSOIntegration {
 
   public function enqueue_scripts() {
     wp_enqueue_script('jquery');
+  }
+
+  function wordpress_logout_action() {
+
+    $redirect_uri = site_url($this->login_redirect_path);
+    $id_token = $_COOKIE['keycloak_id_token'];
+
+    $logout_url = "{$this->keycloak_url}/realms/{$this->realm}/protocol/openid-connect/logout";
+    $logout_url .= '?post_logout_redirect_uri=' . urlencode($redirect_uri);
+    $logout_url .= '&id_token_hint=' . $id_token;
+
+    wp_redirect($logout_url);
+    exit;
   }
 
   public function register_handle_auth_code_endpoints() {
