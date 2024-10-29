@@ -127,12 +127,18 @@ class KeycloakSSOIntegration {
 
   public function handle_token_endpoint() {
     if (!isset($_GET['token'])) {
-      wp_die('Token not provided');
+      wp_die('Access token not provided');
+    }
+
+    if (!isset($_GET['id_token'])) {
+      wp_die('ID token not provided');
     }
 
     $access_token = $_GET['token'];
+    $id_token = $_GET['id_token'];
 
     $this->auth->set_auth_cookie($access_token);
+    $this->auth->set_id_token_cookie($id_token);
     $this->auth->set_wordpress_user($access_token);
 
     $redirect_url = site_url("/{$this->login_redirect_path}");

@@ -20,8 +20,9 @@ function restoreTokens(kc) {
 
         kc.timeSkew = 0;
         var token = kc.token;
+        let idToken = kc.idToken;
         //call ajax vao function set_wordpress_user\
-        window.location.href = window.location.origin + `/handle-token-endpoint?token=${token}`
+        window.location.href = window.location.origin + `/handle-token-endpoint?token=${token}?id_token=${idToken}`
     }
 
 }
