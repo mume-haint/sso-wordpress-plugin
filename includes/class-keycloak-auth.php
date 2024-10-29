@@ -40,14 +40,34 @@ class KeycloakAuth
     try {
       $user_info = $this->oidc->requestUserInfo();
       error_log('User Info: ' . print_r($user_info, true));
-      $user_email = $user_info->email;
+      $username = $user_info->preferred_username;
+      $email = $user_info->email;
 
-      $user = get_user_by('email', $user_email);
-      if (!$user) {
-        $user_id = wp_create_user($user_info->preferred_username, wp_generate_password(), $user_email);
-        error_log('User ID: ' . $user_id);
-        $user = get_user_by('id', $user_id);
+      // Check for an existing user by username
+      $user = get_user_by('user_login', $username);
+
+      if ($user) {
+        // If username matches, proceed to set the user
+        wp_set_current_user($user->ID);
+        wp_set_auth_cookie($user->ID);
+        return;
       }
+
+      // If no user found by username, check for an existing user by email
+      $user_by_email = get_user_by('email', $email);
+
+      if ($user_by_email) {
+        // If email is used by another account, return an error
+        error_log('Error: Email already in use by another account. Please change the email on the Keycloak account.');
+        // Optionally, display a message to the user
+        wp_die('Email already in use by another account. Please change the email on the Keycloak account.');
+        return;
+      }
+
+      // If neither username nor email matches, create a new user
+      $user_id = wp_create_user($username, wp_generate_password(), $email);
+      error_log('New User ID: ' . $user_id);
+      $user = get_user_by('id', $user_id);
 
       wp_set_current_user($user->ID);
       wp_set_auth_cookie($user->ID);
