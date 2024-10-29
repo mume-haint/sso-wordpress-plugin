@@ -60,7 +60,7 @@ class KeycloakAuth
         // If email is used by another account, return an error
         error_log('Error: Email conflict: ' . $email . 'with Keycloak username: ' . $username . ' and Wordpress username: ' . $user_by_email->user_login);
         // Optionally, display a message to the user
-        wp_die('Error: Email registered in keycloak already in use by another account in this Wordpress site. Please change the email of account in the Keycloak site or this site.');
+        wp_die('Email in Keycloak was already in use by another account in this site. Please change the email in the Keycloak site or this site.');
         return;
       }
 

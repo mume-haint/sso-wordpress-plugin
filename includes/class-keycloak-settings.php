@@ -137,13 +137,13 @@ class KeycloakSettings
     $response = wp_remote_get($test_url);
     if (is_wp_error($response)) {
       error_log("Error when testing config to Keycloak", $response->get_error_message());
-      wp_send_json_error($response->get_error_message());
+      wp_send_json_error('Connection to Keycloak failed. Please check input fields again');
     } else {
       $status_code = wp_remote_retrieve_response_code($response);
       if ($status_code == 200) {
         wp_send_json_success();
       } else {
-        wp_send_json_error("Received status code: $status_code");
+        wp_send_json_error('Connection to Keycloak failed. Please check input fields again');
       }
     }
   }
