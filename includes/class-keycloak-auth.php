@@ -44,7 +44,7 @@ class KeycloakAuth
       $email = $user_info->email;
 
       // Check for an existing user by username
-      $user = get_user_by('user_login', $username);
+      $user = get_user_by('login', $username);
 
       if ($user) {
         // If username matches, proceed to set the user
@@ -58,9 +58,9 @@ class KeycloakAuth
 
       if ($user_by_email) {
         // If email is used by another account, return an error
-        error_log('Error: Email already in use by another account. Please change the email on the Keycloak account.');
+        error_log('Error: Email conflict: ' . $email . 'with Keycloak username: ' . $username . ' and Wordpress username: ' . $user_by_email->user_login);
         // Optionally, display a message to the user
-        wp_die('Email already in use by another account. Please change the email on the Keycloak account.');
+        wp_die('Error: Email registered in keycloak already in use by another account in this Wordpress site. Please change the email of account in the Keycloak site or this site.');
         return;
       }
 
